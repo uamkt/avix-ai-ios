@@ -84,6 +84,8 @@ jobs:
 
       - name: Build Archive
         run: |
+          echo "=== Signing Identities ==="
+          security find-identity -v -p codesigning
           xcodebuild archive \
             -project $APP_NAME.xcodeproj \
             -scheme $SCHEME \
