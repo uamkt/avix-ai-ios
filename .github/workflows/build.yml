@@ -39,24 +39,28 @@ jobs:
         run: |
           base64 --decode -i provisioning/avixai_appstore.b64 -o $RUNNER_TEMP/profile.mobileprovision
           PP_UUID=$(/usr/bin/security cms -D -i $RUNNER_TEMP/profile.mobileprovision | plutil -extract UUID raw -)
+          TEAM_ID=$(/usr/bin/security cms -D -i $RUNNER_TEMP/profile.mobileprovision | plutil -extract TeamIdentifier.0 raw -)
           echo "PP_UUID=$PP_UUID" >> $GITHUB_ENV
+          echo "TEAM_ID=$TEAM_ID" >> $GITHUB_ENV
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp $RUNNER_TEMP/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$PP_UUID.mobileprovision
           echo "Profile UUID: $PP_UUID"
+          echo "Team ID: $TEAM_ID"
+
       - name: Generate App Icon
         run: |
           python3 - << 'PYEOF'
           import struct, zlib, os
           def make_png(w, h, r, g, b):
-              def chunk(ct, data):
-                  c = ct + data
-                  return struct.pack('>I', len(data)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
-              ihdr = struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)
-              row = bytes([0]) + bytes([r, g, b] * w)
-              idat = zlib.compress(row * h, 9)
-              return b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', ihdr) + chunk(b'IDAT', idat) + chunk(b'IEND', b'')
+            def chunk(ct, data):
+              c = ct + data
+              return struct.pack('>I', len(data)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
+            ihdr = struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)
+            row = bytes([0]) + bytes([r, g, b] * w)
+            idat = zlib.compress(row * h, 9)
+            return b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', ihdr) + chunk(b'IDAT', idat) + chunk(b'IEND', b'')
           with open('AVIX-AI/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png', 'wb') as f:
-              f.write(make_png(1024, 1024, 30, 80, 160))
+            f.write(make_png(1024, 1024, 30, 80, 160))
           print('Icon created')
           PYEOF
           cat > AVIX-AI/Assets.xcassets/AppIcon.appiconset/Contents.json << 'CEOF'
@@ -75,9 +79,10 @@ jobs:
             }
           }
           CEOF
+          /usr/libexec/PlistBuddy -c "Add :UIRequiresFullScreen bool true" AVIX-AI/Info.plist 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :UIRequiresFullScreen true" AVIX-AI/Info.plist
 
-
-      - name: Build Unsigned Archive
+      - name: Build Archive
         run: |
           xcodebuild archive \
             -project $APP_NAME.xcodeproj \
@@ -86,54 +91,44 @@ jobs:
             -sdk iphoneos \
             -archivePath $RUNNER_TEMP/$APP_NAME.xcarchive \
             -destination 'generic/platform=iOS' \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            CODE_SIGNING_REQUIRED=YES \
+            CODE_SIGNING_ALLOWED=YES \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            PROVISIONING_PROFILE_SPECIFIER="$PP_UUID" \
             IPHONEOS_DEPLOYMENT_TARGET=17.0 \
             ENABLE_ON_DEMAND_RESOURCES=NO \
-            ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS=NO \
-            SUPPORTED_PLATFORMS="iphoneos"
+            ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS=NO
 
-      - name: Sign and Create IPA
+      - name: Export IPA
         run: |
-          APP_PATH=$RUNNER_TEMP/$APP_NAME.xcarchive/Products/Applications/$APP_NAME.app
-
-          echo "=== Embedding provisioning profile ==="
-          cp $RUNNER_TEMP/profile.mobileprovision "$APP_PATH/embedded.mobileprovision"
-
-          echo "=== Finding signing identity ==="
-          IDENTITY=$(security find-identity -v -p codesigning $RUNNER_TEMP/app-signing.keychain-db | grep "Apple Distribution" | head -1 | awk -F'"' '{print $2}')
-          echo "Signing with: $IDENTITY"
-
-          echo "=== Extracting entitlements from profile ==="
-          /usr/bin/security cms -D -i $RUNNER_TEMP/profile.mobileprovision > $RUNNER_TEMP/profile_full.plist
-          /usr/libexec/PlistBuddy -x -c "Print :Entitlements" $RUNNER_TEMP/profile_full.plist > $RUNNER_TEMP/entitlements.plist
-          echo "Entitlements:"
-          cat $RUNNER_TEMP/entitlements.plist
-
-          echo "=== Signing frameworks ==="
-          if [ -d "$APP_PATH/Frameworks" ]; then
-            for framework in "$APP_PATH/Frameworks/"*; do
-              /usr/bin/codesign --force --sign "$IDENTITY" --keychain $RUNNER_TEMP/app-signing.keychain-db "$framework"
-            done
-          fi
-
-          echo "=== Signing app ==="
-          /usr/bin/codesign --force --sign "$IDENTITY" \
-            --keychain $RUNNER_TEMP/app-signing.keychain-db \
-            --entitlements $RUNNER_TEMP/entitlements.plist \
-            --timestamp \
-            "$APP_PATH"
-
-          echo "=== Verifying signature ==="
-          /usr/bin/codesign --verify --deep --strict "$APP_PATH"
-          echo "Signature verified successfully"
-
-          echo "=== Creating IPA ==="
-          mkdir -p $RUNNER_TEMP/Payload
-          cp -R "$APP_PATH" $RUNNER_TEMP/Payload/
-          cd $RUNNER_TEMP
-          /usr/bin/zip -r $RUNNER_TEMP/$APP_NAME.ipa Payload
+          cat > $RUNNER_TEMP/ExportOptions.plist << PEOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>teamID</key>
+              <string>$TEAM_ID</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>$BUNDLE_ID</key>
+                  <string>$PP_UUID</string>
+              </dict>
+              <key>uploadBitcode</key>
+              <false/>
+          </dict>
+          </plist>
+          PEOF
+          xcodebuild -exportArchive \
+            -archivePath $RUNNER_TEMP/$APP_NAME.xcarchive \
+            -exportPath $RUNNER_TEMP/export \
+            -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist
+          IPA_PATH=$(find $RUNNER_TEMP/export -name "*.ipa" | head -1)
+          cp "$IPA_PATH" $RUNNER_TEMP/$APP_NAME.ipa
           echo "IPA created: $RUNNER_TEMP/$APP_NAME.ipa"
           ls -la $RUNNER_TEMP/$APP_NAME.ipa
 
