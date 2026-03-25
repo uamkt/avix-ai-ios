@@ -1,16 +1,732 @@
-# AVIX-AI
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>AVIX-AI — AI 기반 항공작전 조류위협 대응체계</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap');
+:root{
+  --bg:#060a12;--panel:#0c1219;--card:#111a28;--border:#162038;
+  --ai:#00e5ff;--ai2:#7c4dff;--ai3:#00e676;
+  --bird:#ff5c8a;--drone:#00d4ff;--gas:#b388ff;--mission:#76ff03;
+  --green:#00ff9d;--warn:#ffab00;--danger:#ff3d3d;
+  --text:#c9d1d9;--dim:#4b5c78;--white:#f0f4f8;
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;line-height:1.6;
+  min-height:100vh;min-height:100dvh;overflow-x:hidden;
+  padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#1a2940;border-radius:4px}
+.header{background:linear-gradient(180deg,#0a1220,var(--panel));border-bottom:2px solid var(--ai);padding:14px 16px;display:flex;justify-content:space-between;align-items:center;position:relative;overflow:hidden}
+.header::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--ai),var(--ai2),var(--ai),transparent);animation:headerGlow 3s linear infinite}
+@keyframes headerGlow{0%{opacity:.6}50%{opacity:1}100%{opacity:.6}}
+.hdr-logo{display:flex;align-items:center;gap:12px;z-index:1}
+.ai-icon{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,rgba(0,229,255,.15),rgba(124,77,255,.15));border:1.5px solid rgba(0,229,255,.4);display:flex;align-items:center;justify-content:center;font-size:18px;position:relative}
+.ai-icon::after{content:'';position:absolute;inset:-2px;border-radius:12px;background:conic-gradient(from 0deg,transparent,rgba(0,229,255,.3),transparent);animation:spin 4s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hdr-logo h1{font-size:18px;font-weight:900;background:linear-gradient(135deg,var(--ai),var(--ai2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px}
+.hdr-logo .sub{font-size:10px;color:var(--dim);font-weight:500}
+.hdr-status{text-align:right;font-size:11px;z-index:1}
+.hdr-status .active{color:var(--ai3);font-weight:700;display:flex;align-items:center;gap:4px;justify-content:flex-end}
+.hdr-status .active .pulse-dot{width:8px;height:8px;border-radius:50%;background:var(--ai3);animation:dotPulse 1.5s infinite}
+@keyframes dotPulse{0%,100%{box-shadow:0 0 4px var(--ai3)}50%{box-shadow:0 0 12px var(--ai3),0 0 20px rgba(0,230,118,.3)}}
+.hdr-status .time{font-family:var(--mono);color:var(--dim);font-size:10px;margin-top:2px}
+.ai-bar{background:var(--panel);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;gap:16px;align-items:center;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.ai-metric{display:flex;align-items:center;gap:6px;font-size:10px;white-space:nowrap}
+.ai-metric .dot{width:6px;height:6px;border-radius:50%}
+.ai-metric .label{color:var(--dim)}
+.ai-metric .val{font-family:var(--mono);font-weight:700}
+.patent-bar{background:var(--panel);border-bottom:1px solid var(--border);padding:6px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pat-tag{padding:3px 10px;border-radius:12px;font-size:9px;font-weight:700;background:rgba(124,77,255,.1);color:var(--ai2);border:1px solid rgba(124,77,255,.25)}
+.org-tag{margin-left:auto;padding:3px 10px;border-radius:12px;font-size:9px;font-weight:700;background:rgba(0,229,255,.08);color:var(--ai);border:1px solid rgba(0,229,255,.2)}
+.tab-bar{background:var(--panel);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab-btn{background:transparent;border:1px solid var(--border);color:#667;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;white-space:nowrap;transition:all .25s;font-family:var(--sans)}
+.tab-btn.active{background:linear-gradient(135deg,rgba(0,229,255,.12),rgba(124,77,255,.08));border-color:var(--ai);color:var(--ai);font-weight:700;box-shadow:0 0 12px rgba(0,229,255,.1)}.content{padding:16px;min-height:calc(100vh - 240px)}
+.view{display:none}.view.active{display:block}
+h2.panel-title{font-size:18px;font-weight:900;color:var(--white);margin-bottom:16px;display:flex;align-items:center;gap:10px}
+h2.panel-title .ai-badge{font-size:9px;padding:3px 8px;border-radius:10px;background:linear-gradient(135deg,rgba(0,229,255,.15),rgba(124,77,255,.15));color:var(--ai);border:1px solid rgba(0,229,255,.3);font-weight:700;letter-spacing:.5px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.section-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+.ai-conf{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--mono);padding:2px 8px;border-radius:4px;background:rgba(0,229,255,.08);color:var(--ai);border:1px solid rgba(0,229,255,.15)}
+.ai-conf::before{content:'AI';font-weight:900;font-size:8px;padding:1px 4px;border-radius:3px;background:var(--ai);color:var(--bg);margin-right:2px}
+.radar-wrap{position:relative;width:260px;height:260px;margin:0 auto;background:radial-gradient(circle,#0a2a2a,#001515);border:2px solid var(--ai);border-radius:50%;overflow:hidden;box-shadow:0 0 30px rgba(0,229,255,.1),inset 0 0 30px rgba(0,229,255,.05)}
+.radar-ring{position:absolute;top:50%;left:50%;border:1px solid rgba(0,229,255,.12);border-radius:50%;transform:translate(-50%,-50%)}
+.radar-sweep{position:absolute;top:50%;left:50%;width:130px;height:130px;border-radius:50%;transform-origin:center center;animation:sweep 3.5s linear infinite}
+@keyframes sweep{from{transform:translate(-50%,-50%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+.radar-center{position:absolute;top:50%;left:50%;width:8px;height:8px;background:var(--ai);border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 10px var(--ai)}
+.bird-dot{position:absolute;width:10px;height:10px;border-radius:50%;box-shadow:0 0 8px;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.bird-dot.classified{border:2px solid var(--ai);box-shadow:0 0 8px var(--ai),0 0 4px var(--bird)}
+.bird-dot .ai-label{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:7px;font-family:var(--mono);color:var(--ai);white-space:nowrap;background:rgba(0,0,0,.7);padding:1px 4px;border-radius:3px}
+.bird-stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.bird-stat .name{font-size:12px;font-weight:600}
+.bird-stat .count{font-size:16px;font-weight:800}
+.bird-stat .level{font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px}
+.data-table{width:100%;font-size:11px;border-collapse:collapse}
+.data-table th{padding:6px 8px;text-align:left;font-weight:700;color:var(--ai);border-bottom:1px solid var(--border);font-size:10px;letter-spacing:.5px;text-transform:uppercase}
+.data-table td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.03)}
+.drone-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;position:relative;overflow:hidden}
+.drone-card .type-badge{position:absolute;top:12px;right:12px;font-size:8px;padding:3px 8px;border-radius:10px;font-weight:700;letter-spacing:.5px}
+.drone-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.drone-hdr h3{font-size:15px;font-weight:700}
+.status-dot{width:10px;height:10px;border-radius:50%;box-shadow:0 0 6px}
+.info-row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px}
+.bar-wrap{background:var(--bg);height:6px;border-radius:3px;overflow:hidden;margin-top:4px}
+.bar-fill{height:100%;border-radius:3px;transition:width .5s}
+.kc-steps{display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap}
+.kc-step{flex:1;min-width:80px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 6px;text-align:center;position:relative}
+.kc-step.ai-step{border-color:rgba(0,229,255,.3);background:linear-gradient(180deg,rgba(0,229,255,.05),var(--card))}
+.kc-step.ai-step::before{content:'AI';position:absolute;top:4px;right:4px;font-size:7px;font-weight:900;color:var(--bg);background:var(--ai);padding:1px 4px;border-radius:3px}
+.kc-num{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;margin:0 auto 6px}
+.kc-step h4{font-size:9px;font-weight:700;letter-spacing:.3px}
+.kc-arrow{position:absolute;right:-10px;top:50%;transform:translateY(-50%);color:var(--dim);font-size:14px;z-index:1}
+.bash-report{background:#060a14;border:1px solid #132040;border-radius:8px;padding:14px;font-family:var(--mono);font-size:10px;line-height:1.8;white-space:pre-wrap;color:var(--green);overflow-x:auto}
+.heat-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.heat-cell{border:1px solid var(--border);border-radius:4px;padding:10px;text-align:center;font-size:11px;cursor:pointer;position:relative}
+.heat-cell .ai-score{position:absolute;bottom:2px;right:3px;font-size:7px;font-family:var(--mono);color:var(--ai);opacity:.7}
+.spec-box{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+.spec-box .icon{font-size:22px;margin-bottom:6px}
+.spec-box .label{font-size:10px;color:var(--dim);margin-bottom:4px}
+.spec-box .val{font-size:14px;font-weight:800;color:var(--ai)}
+.neural-bg{position:absolute;top:0;right:0;width:80px;height:80px;opacity:.05;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Ccircle cx='20' cy='20' r='3' fill='%2300e5ff'/%3E%3Ccircle cx='60' cy='20' r='3' fill='%2300e5ff'/%3E%3Ccircle cx='40' cy='40' r='3' fill='%237c4dff'/%3E%3Ccircle cx='20' cy='60' r='3' fill='%2300e5ff'/%3E%3Ccircle cx='60' cy='60' r='3' fill='%2300e5ff'/%3E%3Cline x1='20' y1='20' x2='40' y2='40' stroke='%2300e5ff' stroke-width='.5'/%3E%3Cline x1='60' y1='20' x2='40' y2='40' stroke='%2300e5ff' stroke-width='.5'/%3E%3Cline x1='40' y1='40' x2='20' y2='60' stroke='%237c4dff' stroke-width='.5'/%3E%3Cline x1='40' y1='40' x2='60' y2='60' stroke='%237c4dff' stroke-width='.5'/%3E%3C/svg%3E") no-repeat;pointer-events:none}
+.ai-model-card{background:linear-gradient(135deg,rgba(0,229,255,.04),rgba(124,77,255,.04));border:1px solid rgba(0,229,255,.15);border-radius:10px;padding:14px}
+.ai-model-card h4{font-size:12px;font-weight:800;color:var(--ai);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.ai-model-card h4::before{content:'';width:8px;height:8px;border-radius:2px;background:linear-gradient(135deg,var(--ai),var(--ai2))}
+.footer{background:var(--panel);border-top:1px solid var(--border);padding:12px 16px;text-align:center;font-size:10px;color:#445}
+.footer .copy{margin-bottom:4px}
+@media(max-width:600px){
+  .grid-2{grid-template-columns:1fr}
+  .grid-3{grid-template-columns:1fr 1fr}
+  .grid-4{grid-template-columns:1fr 1fr}
+  .kc-steps{flex-direction:column}.kc-arrow{display:none}
+  .radar-wrap{width:200px;height:200px}
+  .ai-bar{gap:10px}
+}
+</style>
+</head>
+<body>
+<!-- HEADER -->
+<div class="header">
+  <div class="hdr-logo">
+    <div class="ai-icon">🦅</div>
+    <div>
+      <h1>AVIX-AI</h1>
+      <div class="sub">Aviation Intelligent eXpert for Bird Strike — AI 기반 항공작전 조류위협 대응체계</div>
+    </div>
+  </div>
+  <div class="hdr-status">
+    <div class="active"><span class="pulse-dot"></span> AI SYSTEM ONLINE</div>
+    <div class="time" id="clock">--:--:-- KST</div>
+  </div>
+</div>
+<div class="ai-bar">
+  <div class="ai-metric"><div class="dot" style="background:var(--ai3)"></div><span class="label">AI Engine</span><span class="val" style="color:var(--ai3)">ACTIVE</span></div>
+  <div class="ai-metric"><div class="dot" style="background:var(--ai)"></div><span class="label">Detection Model</span><span class="val" style="color:var(--ai)" id="ai-fps">YOLOv8 32fps</span></div>
+  <div class="ai-metric"><div class="dot" style="background:var(--ai2)"></div><span class="label">Classification</span><span class="val" style="color:var(--ai2)" id="ai-acc">Acc 98.5%</span></div>
+  <div class="ai-metric"><div class="dot" style="background:var(--warn)"></div><span class="label">Threat Level</span><span class="val" style="color:var(--danger)" id="ai-threat">SEVERE</span></div>
+  <div class="ai-metric"><div class="dot" style="background:var(--ai3)"></div><span class="label">GPU Load</span><span class="val" style="color:var(--ai3)" id="ai-gpu">67%</span></div>
+  <div class="ai-metric"><div class="dot" style="background:var(--ai)"></div><span class="label">Inference</span><span class="val" style="color:var(--ai)" id="ai-latency">12ms</span></div>
+</div>
+<div class="patent-bar">
+  <span class="pat-tag">PAT 10-2828256 에어분사</span>
+  <span class="pat-tag">PAT 2025-0019244 HUD</span>
+  <span class="pat-tag">PAT 10-1875181 멀티터치</span>
+  <span class="org-tag">방산혁신기업 | UAM KoreaTech</span>
+</div>
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('radar')">🧠 AI Bird Detection</button>
+  <button class="tab-btn" onclick="switchTab('telemetry')">🚁 Drone Fleet</button>
+  <button class="tab-btn" onclick="switchTab('mission')">🎯 AI Mission Control</button>
+  <button class="tab-btn" onclick="switchTab('bash')">⚡ BASH Protocol</button>
+  <button class="tab-btn" onclick="switchTab('arch')">🏗️ AI Architecture</button>
+</div>
+<div class="content">
+<div class="view active" id="view-radar">
+  <h2 class="panel-title">🧠 AI Bird Detection & Classification <span class="ai-badge">DEEP LEARNING</span></h2>
+  <div class="card" style="border-color:rgba(0,229,255,.2);margin-bottom:14px">
+    <div style="display:flex;gap:14px;flex-wrap:wrap">
+      <div class="ai-model-card" style="flex:1;min-width:200px">
+        <h4>Bird Detection — YOLOv8n</h4>
+        <div style="font-size:11px;color:#aaa;margin-bottom:6px">Real-time Object Detection</div>
+        <div style="display:flex;gap:12px;font-size:10px">
+          <span>mAP@50: <b style="color:var(--ai)">0.967</b></span>
+          <span>FPS: <b style="color:var(--ai3)" id="model-fps">32</b></span>
+          <span>Params: <b style="color:var(--ai2)">3.2M</b></span>
+        </div>
+      </div>
+      <div class="ai-model-card" style="flex:1;min-width:200px">
+        <h4>Species Classification — EfficientNet-B3</h4>
+        <div style="font-size:11px;color:#aaa;margin-bottom:6px">Multi-class Bird Species Classifier</div>
+        <div style="display:flex;gap:12px;font-size:10px">
+          <span>Accuracy: <b style="color:var(--ai)">98.5%</b></span>
+          <span>Classes: <b style="color:var(--ai3)">47종</b></span>
+          <span>Latency: <b style="color:var(--ai2)" id="model-lat">12ms</b></span>
+        </div>
+      </div>
+      <div class="ai-model-card" style="flex:1;min-width:200px">
+        <h4>Trajectory Prediction — LSTM</h4>
+        <div style="font-size:11px;color:#aaa;margin-bottom:6px">Flock Movement Forecast (T+5min)</div>
+        <div style="display:flex;gap:12px;font-size:10px">
+          <span>RMSE: <b style="color:var(--ai)">4.2m</b></span>
+          <span>Horizon: <b style="color:var(--ai3)">5min</b></span>
+          <span>Conf: <b style="color:var(--ai2)" id="model-conf">0.91</b></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <h3 style="font-weight:700;margin-bottom:12px">AI Radar Sweep — Live Detection</h3>
+      <div class="radar-wrap">
+        <div class="radar-ring" style="width:80px;height:80px"></div>
+        <div class="radar-ring" style="width:160px;height:160px"></div>
+        <div class="radar-ring" style="width:240px;height:240px"></div>
+        <div class="radar-sweep" style="background:conic-gradient(from 0deg,rgba(0,229,255,.35),transparent 60%)"></div>
+        <div class="bird-dot classified" style="top:28%;left:62%;background:var(--bird)"><div class="ai-label">왜가리 0.97</div></div>
+        <div class="bird-dot classified" style="top:55%;left:22%;background:var(--warn)"><div class="ai-label">기러기 0.94</div></div>
+        <div class="bird-dot classified" style="top:68%;left:68%;background:var(--warn)"><div class="ai-label">비둘기 0.91</div></div>
+        <div class="bird-dot" style="top:18%;left:38%;background:var(--green);width:7px;height:7px"><div class="ai-label">참매 0.88</div></div>
+        <div class="radar-center"></div>
+      </div>
+      <div style="text-align:center;margin-top:10px;font-size:10px;color:var(--dim)">AI Classification Overlay — 실시간 종 분류 표시</div>
+    </div>
+    <div>
+      <div class="section-label">AI Classified Threats</div>
+      <div class="bird-stat" style="border-left:3px solid var(--danger)">
+        <div><div class="name">왜가리 (Grey Heron)</div><div class="ai-conf" style="margin-top:4px">Conf: 0.972</div></div>
+        <div style="display:flex;align-items:center;gap:8px"><span class="count" style="color:var(--danger)" id="cnt-heron">45</span><span class="level" style="background:rgba(255,59,59,.2);color:var(--danger)">CRITICAL</span></div>
+      </div>
+      <div class="bird-stat" style="border-left:3px solid var(--warn)">
+        <div><div class="name">기러기 (Bean Goose)</div><div class="ai-conf" style="margin-top:4px">Conf: 0.941</div></div>
+        <div style="display:flex;align-items:center;gap:8px"><span class="count" style="color:var(--warn)" id="cnt-goose">28</span><span class="level" style="background:rgba(255,176,32,.2);color:var(--warn)">HIGH</span></div>
+      </div>
+      <div class="bird-stat" style="border-left:3px solid var(--warn)">
+        <div><div class="name">비둘기 (Rock Dove)</div><div class="ai-conf" style="margin-top:4px">Conf: 0.913</div></div>
+        <div style="display:flex;align-items:center;gap:8px"><span class="count" style="color:var(--warn)" id="cnt-dove">12</span><span class="level" style="background:rgba(255,176,32,.15);color:var(--warn)">MEDIUM</span></div>
+      </div>
+      <div class="bird-stat" style="border-left:3px solid var(--green)">
+        <div><div class="name">참매 (Northern Goshawk)</div><div class="ai-conf" style="margin-top:4px">Conf: 0.882</div></div>
+        <div style="display:flex;align-items:center;gap:8px"><span class="count" style="color:var(--green)">1</span><span class="level" style="background:rgba(0,255,157,.15);color:var(--green)">LOW</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="font-weight:700;margin-bottom:10px">AI Inference Log — Real-time Detection Stream</h3>
+    <div class="bash-report" id="ai-detect-log" style="color:var(--ai);height:130px;overflow-y:auto"></div>
+  </div>
+  <div class="card">
+    <h3 style="font-weight:700;margin-bottom:4px">AI Risk Heatmap — Runway Zones</h3>
+    <div style="margin-bottom:8px;font-size:10px;color:var(--dim)">AI가 예측한 조류위협 확률 분포 | RWY 09L/27R (3,200m) · RWY 15/33 (2,700m)</div>
+    <div class="heat-grid" id="heatmap"></div>
+  </div>
+</div>
+<div class="view" id="view-telemetry">
+  <h2 class="panel-title">🚁 Drone Fleet Telemetry <span class="ai-badge">AI AUTONOMOUS</span></h2>
+  <div class="grid-3" style="margin-bottom:14px">
+    <div class="card" style="text-align:center;border-color:rgba(0,229,255,.2)"><div style="font-size:10px;color:var(--dim)">Fleet Size</div><div style="font-size:28px;font-weight:900;color:var(--ai)">4</div><div style="font-size:9px;color:var(--dim)">에어분사×2 + 가스멸균×2</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:10px;color:var(--dim)">Active / Standby</div><div style="font-size:28px;font-weight:900;color:var(--ai3)">2 <span style="color:var(--dim);font-size:16px">/</span> <span style="color:var(--warn)">2</span></div></div>
+    <div class="card" style="text-align:center"><div style="font-size:10px;color:var(--dim)">AI Path Planning</div><div style="font-size:28px;font-weight:900;color:var(--ai2)">ON</div><div style="font-size:9px;color:var(--dim)">A* + Collision Avoidance</div></div>
+  </div>
+  <div class="section-label">에어분사 드론 (Air-Blast Deterrent)</div>
+  <div class="grid-2" style="margin-bottom:14px">
+    <div class="drone-card">
+      <div class="type-badge" style="background:rgba(0,212,255,.15);color:var(--drone);border:1px solid rgba(0,212,255,.3)">AIR-BLAST</div>
+      <div class="drone-hdr"><h3>🟢 Alpha (에어분사)</h3><div class="status-dot" style="background:var(--green);box-shadow:0 0 6px var(--green)"></div></div>
+      <div style="background:var(--bg);border-radius:6px;padding:10px;margin-bottom:12px;font-size:12px">
+        <div class="info-row"><span>Status:</span><span style="color:var(--green);font-weight:700">ACTIVE (AI Patrol)</span></div>
+        <div class="info-row"><span>GPS:</span><span style="color:var(--ai)">37.5142°N, 127.0620°E</span></div>
+        <div class="info-row"><span>Altitude:</span><span>1,250 ft AGL</span></div>
+        <div class="info-row"><span>AI Mode:</span><span style="color:var(--ai2);font-weight:700">Autonomous Intercept</span></div>
+      </div>
+      <div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="font-weight:700">Battery</span><span style="color:var(--ai)" id="bat-a">92.0%</span></div><div class="bar-wrap"><div class="bar-fill" id="bar-bat-a" style="width:92%;background:var(--green)"></div></div></div>
+      <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="font-weight:700">Air Cartridge</span><span style="color:var(--ai)" id="cart-a">88%</span></div><div class="bar-wrap"><div class="bar-fill" id="bar-cart-a" style="width:88%;background:var(--drone)"></div></div></div>
+    </div>
+    <div class="drone-card">
+      <div class="type-badge" style="background:rgba(0,212,255,.15);color:var(--drone);border:1px solid rgba(0,212,255,.3)">AIR-BLAST</div>
+      <div class="drone-hdr"><h3>🟡 Bravo (에어분사)</h3><div class="status-dot" style="background:var(--warn);box-shadow:0 0 6px var(--warn)"></div></div>
+      <div style="background:var(--bg);border-radius:6px;padding:10px;margin-bottom:12px;font-size:12px">
+        <div class="info-row"><span>Status:</span><span style="color:var(--warn);font-weight:700">STANDBY (Pad B)</span></div>
+        <div class="info-row"><span>GPS:</span><span style="color:var(--ai)">37.5138°N, 127.0615°E</span></div>
+        <div class="info-row"><span>Altitude:</span><span>Ground</span></div>
+        <div class="info-row"><span>AI Mode:</span><span style="color:var(--dim)">Ready for Dispatch</span></div>
+      </div>
+      <div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="font-weight:700">Battery</span><span style="color:var(--ai)" id="bat-b">87.0%</span></div><div class="bar-wrap"><div class="bar-fill" id="bar-bat-b" style="width:87%;background:var(--green)"></div></div></div>
+      <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="font-weight:700">Air Cartridge</span><span style="color:var(--ai)" id="cart-b">81%</span></div><div class="bar-wrap"><div class="bar-fill" id="bar-cart-b" style="width:81%;background:var(--drone)"></div></div></div>
+    </div>
+  </div>
+  <div class="section-label">가스멸균 드론 (Gas Sterilization UAV)</div>
+  <div class="grid-2" style="margin-bottom:14px">
+    <div class="drone-card" style="border-color:rgba(179,136,255,.2)">
+      <div class="type-badge" style="background:rgba(179,136,255,.15);color:var(--gas);border:1px solid rgba(179,136,255,.3)">GAS-STERIL</div>
+      <div class="drone-hdr"><h3 style="color:var(--gas)">🟢 Charlie (가스멸균)</h3><div class="status-dot" style="background:var(--ai3);box-shadow:0 0 6px var(--ai3)"></div></div>
+      <div style="background:var(--bg);border-radius:6px;padding:10px;margin-bottom:12px;font-size:12px">
+        <div class="info-row"><span>Status:</span><span style="color:var(--ai3);font-weight:700">ACTIVE (Zone Sanitize)</span></div>
+        <div class="info-row"><span>GPS:</span><span style="color:var(--ai)">37.5145°N, 127.0625°E</span></div>
+        <div class="info-row"><span>Altitude:</span><span>80 ft AGL</span></div>
+        <div class="info-row"><span>AI Mode:</span><span style="color:var(--gas);font-weight:700">Area Decontamination</span></div>
+      </div>
+      <div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="font-weight:700">Battery</span><span style="color:var(--ai)" id="bat-c">78.5%</span></div><div class="bar-wrap"><div class="bar-fill" id="bar-bat-c" style="width:78.5%;background:var(--green)"></div></div></div>
+      <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="font-weight:700">Gas Tank (EO/H₂O₂)</span><span style="color:var(--gas)" id="gas-c">72%</span></div><div class="bar-wrap"><div class="bar-fill" id="bar-gas-c" style="width:72%;background:var(--gas)"></div></div></div>
+    </div>
+    <div class="drone-card" style="border-color:rgba(179,136,255,.2)">
+      <div class="type-badge" style="background:rgba(179,136,255,.15);color:var(--gas);border:1px solid rgba(179,136,255,.3)">GAS-STERIL</div>
+      <div class="drone-hdr"><h3 style="color:var(--gas)">🟡 Delta (가스멸균)</h3><div class="status-dot" style="background:var(--warn);box-shadow:0 0 6px var(--warn)"></div></div>
+      <div style="background:var(--bg);border-radius:6px;padding:10px;margin-bottom:12px;font-size:12px">
+        <div class="info-row"><span>Status:</span><span style="color:var(--warn);font-weight:700">STANDBY (Pad D)</span></div>
+        <div class="info-row"><span>GPS:</span><span style="color:var(--ai)">37.5140°N, 127.0618°E</span></div>
+        <div class="info-row"><span>Altitude:</span><span>Ground</span></div>
+        <div class="info-row"><span>AI Mode:</span><span style="color:var(--dim)">Ready for Dispatch</span></div>
+      </div>
+      <div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="font-weight:700">Battery</span><span style="color:var(--ai)" id="bat-d">95.0%</span></div><div class="bar-wrap"><div class="bar-fill" id="bar-bat-d" style="width:95%;background:var(--green)"></div></div></div>
+      <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="font-weight:700">Gas Tank (EO/H₂O₂)</span><span style="color:var(--gas)" id="gas-d">100%</span></div><div class="bar-wrap"><div class="bar-fill" id="bar-gas-d" style="width:100%;background:var(--gas)"></div></div></div>
+    </div>
+  </div>
+  <div class="card"><h3 style="font-weight:700;margin-bottom:10px">MAVLink Telemetry Stream</h3><div class="bash-report" id="mavlink-log" style="color:var(--drone);height:120px;overflow-y:auto"></div></div>
+</div>
+<div class="view" id="view-mission">
+  <h2 class="panel-title">🎯 AI Mission Control <span class="ai-badge">AUTONOMOUS KILL CHAIN</span></h2>
+  <div class="card">
+    <h3 style="font-weight:700;margin-bottom:12px">AVIX-AI Kill Chain — 7-Step AI Workflow</h3>
+    <div class="kc-steps">
+      <div class="kc-step ai-step"><div class="kc-num" style="background:rgba(0,229,255,.15);color:var(--ai);border:2px solid rgba(0,229,255,.4)">1</div><h4 style="color:var(--ai)">AI 감지</h4><div class="kc-arrow">→</div></div>
+      <div class="kc-step ai-step"><div class="kc-num" style="background:rgba(124,77,255,.15);color:var(--ai2);border:2px solid rgba(124,77,255,.4)">2</div><h4 style="color:var(--ai2)">AI 종분류</h4><div class="kc-arrow">→</div></div>
+      <div class="kc-step ai-step"><div class="kc-num" style="background:rgba(0,229,255,.15);color:var(--ai);border:2px solid rgba(0,229,255,.4)">3</div><h4 style="color:var(--ai)">AI 위협평가</h4><div class="kc-arrow">→</div></div>
+      <div class="kc-step"><div class="kc-num" style="background:rgba(132,204,22,.15);color:var(--mission);border:2px solid rgba(132,204,22,.4)">4</div><h4 style="color:var(--mission)">터치 승인</h4><div class="kc-arrow">→</div></div>
+      <div class="kc-step ai-step"><div class="kc-num" style="background:rgba(0,229,255,.15);color:var(--ai);border:2px solid rgba(0,229,255,.4)">5</div><h4 style="color:var(--ai)">AI 경로계획</h4><div class="kc-arrow">→</div></div>
+      <div class="kc-step"><div class="kc-num" style="background:rgba(255,59,59,.15);color:var(--danger);border:2px solid rgba(255,59,59,.4)">6</div><h4 style="color:var(--danger)">분사/살포</h4><div class="kc-arrow">→</div></div>
+      <div class="kc-step ai-step"><div class="kc-num" style="background:rgba(0,230,118,.15);color:var(--ai3);border:2px solid rgba(0,230,118,.4)">7</div><h4 style="color:var(--ai3)">AI 효과분석</h4></div>
+    </div>
+    <div style="text-align:center;font-size:10px;color:var(--dim);margin-top:4px">7단계 중 <b style="color:var(--ai)">5단계가 AI 자동화</b> — 운용자는 Step 4 승인만 수행</div>
+  </div>
+  <div class="card">
+    <h3 style="font-weight:700;margin-bottom:10px">Active Missions</h3>
+    <table class="data-table">
+      <thead><tr><th>Mission</th><th>Target</th><th>Drone</th><th>Type</th><th>Status</th><th>Step</th></tr></thead>
+      <tbody>
+        <tr><td style="color:var(--ai);font-weight:700">MSN-001</td><td>FL-001 왜가리 (45)</td><td>Alpha</td><td><span style="color:var(--drone);font-size:10px">에어분사</span></td><td><span style="color:var(--mission);font-weight:700">● ENGAGING</span></td><td>Step 6 — 에어분사</td></tr>
+        <tr><td style="color:var(--ai);font-weight:700">MSN-002</td><td>FL-002 기러기 (28)</td><td>—</td><td><span style="color:var(--dim);font-size:10px">미배정</span></td><td><span style="color:var(--warn);font-weight:700">● PENDING</span></td><td>Step 4 — 터치 승인 대기</td></tr>
+        <tr><td style="color:var(--ai);font-weight:700">MSN-003</td><td>Zone-C Taxiway</td><td>Charlie</td><td><span style="color:var(--gas);font-size:10px">가스멸균</span></td><td><span style="color:var(--ai3);font-weight:700">● SANITIZING</span></td><td>Step 6 — EO 살포 중</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="grid-4">
+    <div class="card" style="text-align:center"><div style="font-size:26px;font-weight:900;color:var(--green)">4</div><div style="font-size:9px;color:var(--dim);margin-top:4px">Strikes Prevented</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:26px;font-weight:900;color:var(--ai)">98.5%</div><div style="font-size:9px;color:var(--dim);margin-top:4px">AI Detection Acc</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:26px;font-weight:900;color:var(--ai2)">12ms</div><div style="font-size:9px;color:var(--dim);margin-top:4px">AI Inference</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:26px;font-weight:900;color:var(--gas)">2</div><div style="font-size:9px;color:var(--dim);margin-top:4px">Areas Sanitized</div></div>
+  </div>
+  <div class="card">
+    <h3 style="font-weight:700;margin-bottom:10px">AI Deterrence Event Log</h3>
+    <div class="bash-report" style="color:var(--mission);height:140px">
+[06:12:34] AI DETECT | FL-001 왜가리 45ea | YOLOv8 Conf: 0.972 | Species: EfficientNet 0.968
+[06:12:35] AI THREAT | CRITICAL | LSTM Prediction: Runway intercept T+3min | P=0.89
+[06:12:38] AI ASSESS | Risk Score: 9.4/10 | Recommended: Air-Blast Intercept
+[06:12:45] HUMAN-IN-LOOP | Operator TOUCH APPROVAL received ✓
+[06:12:46] AI PATH  | A* route computed | ETA: 87sec | Collision-free verified
+[06:14:12] EXECUTE  | Drone Alpha → FL-001 | Air-Blast 120PSI initiated
+[06:14:18] AI EVAL  | Post-action analysis: 92% flock dispersed from RWY zone
+[06:14:22] LOGGED   | MSN-001 COMPLETE | BASH Entry #2026-0325-001 auto-generated
+[06:30:15] AI DETECT | Zone-C contamination risk | Fecal density: HIGH
+[06:30:18] DISPATCH | Drone Charlie (가스멸균) → Zone-C | EO/H₂O₂ spray mode
+[06:32:45] AI EVAL  | Sterilization coverage: 94% | Zone-C status: CLEAN
+    </div>
+  </div>
+</div>
+<div class="view" id="view-bash">
+  <h2 class="panel-title">⚡ BASH Protocol (DAFI 91-212) <span class="ai-badge">AUTO-REPORT</span></h2>
+  <div class="grid-2" style="margin-bottom:14px">
+    <div class="card" style="text-align:center"><div style="font-size:10px;color:var(--dim);margin-bottom:4px">Today's AI Risk Assessment</div><div style="font-size:32px;font-weight:900;color:var(--danger)">SEVERE</div><div style="font-size:11px;color:var(--dim);margin-top:4px">AI Confidence: <b style="color:var(--ai)">0.94</b> | 이동 철새 군집 다수 탐지</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:10px;color:var(--dim);margin-bottom:4px">Monthly AI Prevention Stats</div><div style="font-size:32px;font-weight:900;color:var(--warn)">7</div><div style="font-size:11px;color:var(--dim);margin-top:4px">에어분사 4건 | 가스멸균 2건 | Near-miss 1건</div></div>
+  </div>
+  <div class="card">
+    <h3 style="font-weight:700;margin-bottom:10px">BASH Daily Report — AI Auto-Generated (DAFI 91-212)</h3>
+    <div class="bash-report">
+═══════════════════════════════════════════════════════
+          BIRD/WILDLIFE AIRCRAFT STRIKE HAZARD (BASH)
+                   DAILY OPERATIONS REPORT
+            DAFI 91-212 — AVIX-AI AUTO-GENERATED
+═══════════════════════════════════════════════════════
 
-Aviation Intelligent eXpert for Bird Strike — AI 기반 항공작전 조류위협 대응체계 GCS App
+DATE:         2026-03-25 (Tuesday)
+INSTALLATION: K-AB (Airbase)
+SYSTEM:       AVIX-AI v1.0 (Aviation Intelligent eXpert)
+PREPARER:     AI Auto-Report Engine (EfficientNet + LSTM)
 
-## Overview
-- 3-Patent Integration (PAT 10-2828256, 2025-0019244, 10-1875181)
-- Dual Drone Fleet: Air-Blast + CBRN Gas Sterilization
-- Anduril Lattice C2 Entity Mapping
-- 7-Step AI Kill Chain
+─── SECTION 1: AI RISK ASSESSMENT ──────────────────
+Current BASH Condition: SEVERE (AI Conf: 0.94)
+AI Analysis: Spring migration peak — large flock activity
+  near RWY 09L/27R approach corridors
+  LSTM Forecast: Continued HIGH activity until 1800L
+  Historical Pattern Match: 87% similar to 2025-03-22 event
+Effective: 0600L — 1800L
 
-## Tech Stack
-- YOLOv8n (Bird Detection, mAP@50: 0.967)
-- EfficientNet-B3 (Species Classification, 47 species, 98.5%)
-- LSTM (Trajectory Prediction, 5min horizon)
+─── SECTION 2: AI-CLASSIFIED SPECIES ──────────────
+ Species             Count   AI Conf  Risk    Location
+ ─────────────────── ─────── ──────── ─────── ──────────
+ 왜가리 Grey Heron    45      0.972    CRIT    RWY 09L APP
+ 기러기 Bean Goose    28      0.941    HIGH    RWY 15 DEPT
+ 비둘기 Rock Dove     12      0.913    MED     Taxiway C
+ 참매   N. Goshawk     1      0.882    LOW     Perimeter NE
 
-© 2026 UAM KoreaTech Co., Ltd.
+─── SECTION 3: DETERRENCE ACTIONS ─────────────────
+ Time    Mission   Drone     Type        Action       Result
+ ─────── ───────── ───────── ─────────── ──────────── ────────
+ 0612L   MSN-001   Alpha     에어분사    Air-Blast    SUCCESS
+ 0630L   MSN-003   Charlie   가스멸균    EO Spray     SUCCESS
+ 0845L   MSN-002   —         미배정      —            PENDING
+
+─── SECTION 4: FLIGHT SCHEDULE IMPACT ─────────────
+ 0600L KF-16C ×4 T/O RWY 09L — AI Risk: 9.4/10 (HIGH)
+ 0830L T-50 Training RWY 15  — AI Risk: 6.2/10 (MED)
+ 1000L C-130J Landing RWY 09L — AI Risk: 3.1/10 (LOW)
+ 1400L KF-16C ×4 LDG RWY 27R — AI Risk: 8.7/10 (HIGH)
+
+─── SECTION 5: AI RECOMMENDATIONS ─────────────────
+ 1. Maintain SEVERE BASH condition until 1800L
+ 2. Deploy Alpha continuous AI patrol RWY 09L corridor
+ 3. Stage Bravo for rapid response RWY 15
+ 4. Deploy Charlie 가스멸균 for Zone-C/D sanitization
+ 5. Brief aircrew: 왜가리 flock 045° approach, alt 850ft
+ 6. AI Trajectory Prediction: 기러기 flock shift to 320° by 1200L
+
+═══════════════════════════════════════════════════════
+ AVIX-AI v1.0 | 3-Patent Integration | AI Autonomous
+ Report ID: BASH-2026-0325-001 | AUTO-GENERATED
+═══════════════════════════════════════════════════════
+    </div>
+  </div>
+</div>
+<div class="view" id="view-arch">
+  <h2 class="panel-title">🏗️ AI System Architecture <span class="ai-badge">DEEP LEARNING</span></h2>
+  <div class="card" style="border-color:rgba(0,229,255,.2)">
+    <h3 style="font-weight:700;margin-bottom:14px">AI Processing Pipeline</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center">
+      <div style="background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);border-radius:8px;padding:10px 14px;text-align:center;min-width:100px"><div style="font-size:16px;margin-bottom:4px">📹</div><div style="font-size:10px;font-weight:700;color:var(--ai)">CCTV/Radar</div><div style="font-size:8px;color:var(--dim)">Input Stream</div></div>
+      <div style="color:var(--ai);font-size:18px">→</div>
+      <div style="background:rgba(124,77,255,.1);border:1px solid rgba(124,77,255,.3);border-radius:8px;padding:10px 14px;text-align:center;min-width:100px"><div style="font-size:16px;margin-bottom:4px">🧠</div><div style="font-size:10px;font-weight:700;color:var(--ai2)">YOLOv8</div><div style="font-size:8px;color:var(--dim)">Detection</div></div>
+      <div style="color:var(--ai);font-size:18px">→</div>
+      <div style="background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);border-radius:8px;padding:10px 14px;text-align:center;min-width:100px"><div style="font-size:16px;margin-bottom:4px">🔬</div><div style="font-size:10px;font-weight:700;color:var(--ai)">EfficientNet</div><div style="font-size:8px;color:var(--dim)">Classification</div></div>
+      <div style="color:var(--ai);font-size:18px">→</div>
+      <div style="background:rgba(124,77,255,.1);border:1px solid rgba(124,77,255,.3);border-radius:8px;padding:10px 14px;text-align:center;min-width:100px"><div style="font-size:16px;margin-bottom:4px">📈</div><div style="font-size:10px;font-weight:700;color:var(--ai2)">LSTM</div><div style="font-size:8px;color:var(--dim)">Trajectory</div></div>
+      <div style="color:var(--ai);font-size:18px">→</div>
+      <div style="background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.3);border-radius:8px;padding:10px 14px;text-align:center;min-width:100px"><div style="font-size:16px;margin-bottom:4px">🎯</div><div style="font-size:10px;font-weight:700;color:var(--ai3)">Decision</div><div style="font-size:8px;color:var(--dim)">Risk + Action</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="font-weight:700;margin-bottom:14px">3-Patent + Dual Drone Architecture</h3>
+    <div class="grid-3" style="margin-bottom:14px">
+      <div style="background:var(--bg);border:2px solid var(--ai2);border-radius:8px;padding:14px;text-align:center"><div style="color:var(--ai2);font-weight:800;font-size:12px;margin-bottom:6px">PAT 10-2828256</div><div style="font-size:11px;margin-bottom:4px">에어분사 조류퇴치 드론</div><div style="font-size:9px;color:var(--drone)">Hardware Layer — Air-Blast</div></div>
+      <div style="background:var(--bg);border:2px solid var(--ai);border-radius:8px;padding:14px;text-align:center"><div style="color:var(--ai);font-weight:800;font-size:12px;margin-bottom:6px">PAT 2025-0019244</div><div style="font-size:11px;margin-bottom:4px">듀얼모니터링 HUD 시스템</div><div style="font-size:9px;color:var(--ai)">AI Software Layer</div></div>
+      <div style="background:var(--bg);border:2px solid var(--mission);border-radius:8px;padding:14px;text-align:center"><div style="color:var(--mission);font-weight:800;font-size:12px;margin-bottom:6px">PAT 10-1875181</div><div style="font-size:11px;margin-bottom:4px">멀티터치 디스플레이 제어</div><div style="font-size:9px;color:var(--mission)">UI/UX Layer — Human-in-Loop</div></div>
+    </div>
+    <div class="grid-2">
+      <div style="background:linear-gradient(135deg,rgba(0,212,255,.06),rgba(0,212,255,.02));border:1px solid rgba(0,212,255,.2);border-radius:8px;padding:14px;text-align:center"><div style="font-size:20px;margin-bottom:6px">💨</div><div style="font-size:13px;font-weight:700;color:var(--drone);margin-bottom:4px">에어분사 드론</div><div style="font-size:10px;color:#aaa">고압 공기분사 120PSI | 비살상 조류퇴치</div><div style="font-size:10px;color:#aaa">AI 자동 요격 경로 생성 | 군집 분산 최적화</div></div>
+      <div style="background:linear-gradient(135deg,rgba(179,136,255,.06),rgba(179,136,255,.02));border:1px solid rgba(179,136,255,.2);border-radius:8px;padding:14px;text-align:center"><div style="font-size:20px;margin-bottom:6px">🧪</div><div style="font-size:13px;font-weight:700;color:var(--gas);margin-bottom:4px">가스멸균 드론</div><div style="font-size:10px;color:#aaa">EO/H₂O₂ 가스 살포 | 활주로 구역 멸균</div><div style="font-size:10px;color:#aaa">AI 오염 구역 자동 탐지 | 최적 살포 패턴</div></div>
+    </div>
+  </div>
+  <div class="card" style="border-color:rgba(0,229,255,.25);background:linear-gradient(135deg,rgba(0,229,255,.03),rgba(124,77,255,.03))">
+    <h3 style="font-weight:700;margin-bottom:6px">🔗 Lattice Entity Mapping <span class="ai-badge" style="background:rgba(124,77,255,.15);color:#b388ff">C2 INTEGRATION</span></h3>
+    <div style="font-size:10px;color:var(--dim);margin-bottom:16px">Anduril Lattice — Autonomous Entity Tracking & Command Mesh Network</div>
+    <div style="text-align:center;margin-bottom:14px">
+      <div style="display:inline-block;background:rgba(124,77,255,.12);border:2px solid var(--ai2);border-radius:12px;padding:14px 28px"><div style="font-size:18px;margin-bottom:4px">🌐</div><div style="font-size:13px;font-weight:800;color:var(--ai2)">Lattice Mesh Core</div><div style="font-size:9px;color:var(--dim)">Entity Fusion · Ontology Engine · C2 Routing</div></div>
+    </div>
+    <div style="display:flex;justify-content:center;gap:60px;margin-bottom:6px"><div style="text-align:center;color:var(--ai);font-size:14px">│</div><div style="text-align:center;color:var(--ai);font-size:14px">│</div></div>
+    <div style="display:flex;justify-content:center;gap:8px;margin-bottom:14px"><div style="text-align:center;color:var(--ai);font-size:10px;letter-spacing:1px">┌────────────┴────────────┐</div></div>
+    <div class="grid-2" style="margin-bottom:14px">
+      <div style="background:rgba(0,212,255,.04);border:2px solid rgba(0,212,255,.3);border-radius:10px;padding:14px;position:relative">
+        <div style="position:absolute;top:8px;right:10px;background:rgba(0,212,255,.15);color:var(--drone);font-size:8px;font-weight:700;padding:2px 8px;border-radius:10px">ENTITY_TYPE: UAV_AIRBLAST</div>
+        <div style="font-size:18px;margin-bottom:6px">💨</div>
+        <div style="font-size:13px;font-weight:700;color:var(--drone);margin-bottom:8px">에어분사 드론 (Air-Blast)</div>
+        <div style="font-size:10px;color:#aaa;line-height:1.8">
+          <div style="margin-bottom:4px"><span style="color:var(--ai);font-weight:600">entity.id:</span> AVIX-AB-α / AVIX-AB-β</div>
+          <div style="margin-bottom:4px"><span style="color:var(--ai);font-weight:600">callsign:</span> Alpha / Bravo</div>
+          <div style="margin-bottom:4px"><span style="color:var(--ai);font-weight:600">class:</span> UAV.Rotary.Dispersal.AirBlast</div>
+          <div style="margin-bottom:4px"><span style="color:var(--ai);font-weight:600">payload:</span> HPA_120PSI_Nozzle</div>
+          <div style="margin-bottom:4px"><span style="color:var(--ai);font-weight:600">mission_type:</span> BIRD_DISPERSAL</div>
+          <div style="margin-bottom:4px"><span style="color:var(--ai);font-weight:600">ontology:</span> MIL-STD-2525D / APP-6D</div>
+        </div>
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(0,212,255,.15)">
+          <div style="font-size:9px;font-weight:700;color:var(--drone);margin-bottom:6px">SENSOR FEEDS → Lattice</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <span style="background:rgba(0,212,255,.1);color:var(--drone);font-size:8px;padding:2px 6px;border-radius:4px">GPS/INS</span>
+            <span style="background:rgba(0,212,255,.1);color:var(--drone);font-size:8px;padding:2px 6px;border-radius:4px">IMU</span>
+            <span style="background:rgba(0,212,255,.1);color:var(--drone);font-size:8px;padding:2px 6px;border-radius:4px">Altimeter</span>
+            <span style="background:rgba(0,212,255,.1);color:var(--drone);font-size:8px;padding:2px 6px;border-radius:4px">Tank PSI</span>
+            <span style="background:rgba(0,212,255,.1);color:var(--drone);font-size:8px;padding:2px 6px;border-radius:4px">Nozzle Status</span>
+            <span style="background:rgba(0,212,255,.1);color:var(--drone);font-size:8px;padding:2px 6px;border-radius:4px">Battery</span>
+          </div>
+        </div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(0,212,255,.15)">
+          <div style="font-size:9px;font-weight:700;color:var(--ai);margin-bottom:6px">C2 COMMANDS (Lattice →)</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <span style="background:rgba(0,229,255,.1);color:var(--ai);font-size:8px;padding:2px 6px;border-radius:4px">LAUNCH</span>
+            <span style="background:rgba(0,229,255,.1);color:var(--ai);font-size:8px;padding:2px 6px;border-radius:4px">INTERCEPT</span>
+            <span style="background:rgba(0,229,255,.1);color:var(--ai);font-size:8px;padding:2px 6px;border-radius:4px">BLAST</span>
+            <span style="background:rgba(0,229,255,.1);color:var(--ai);font-size:8px;padding:2px 6px;border-radius:4px">RTB</span>
+            <span style="background:rgba(0,229,255,.1);color:var(--ai);font-size:8px;padding:2px 6px;border-radius:4px">ABORT</span>
+          </div>
+        </div>
+      </div>
+      <div style="background:rgba(179,136,255,.04);border:2px solid rgba(179,136,255,.3);border-radius:10px;padding:14px;position:relative">
+        <div style="position:absolute;top:8px;right:10px;background:rgba(179,136,255,.15);color:var(--gas);font-size:8px;font-weight:700;padding:2px 8px;border-radius:10px">ENTITY_TYPE: UAV_CBRN</div>
+        <div style="font-size:18px;margin-bottom:6px">🧪</div>
+        <div style="font-size:13px;font-weight:700;color:var(--gas);margin-bottom:8px">CBRN 가스멸균 드론 (Gas Sterilization)</div>
+        <div style="font-size:10px;color:#aaa;line-height:1.8">
+          <div style="margin-bottom:4px"><span style="color:var(--ai2);font-weight:600">entity.id:</span> AVIX-GS-γ / AVIX-GS-δ</div>
+          <div style="margin-bottom:4px"><span style="color:var(--ai2);font-weight:600">callsign:</span> Charlie / Delta</div>
+          <div style="margin-bottom:4px"><span style="color:var(--ai2);font-weight:600">class:</span> UAV.Rotary.CBRN.GasSterilize</div>
+          <div style="margin-bottom:4px"><span style="color:var(--ai2);font-weight:600">payload:</span> EO_H2O2_Dispersal_5L</div>
+          <div style="margin-bottom:4px"><span style="color:var(--ai2);font-weight:600">mission_type:</span> AREA_STERILIZATION</div>
+          <div style="margin-bottom:4px"><span style="color:var(--ai2);font-weight:600">ontology:</span> MIL-STD-2525D / CBRN-SOP</div>
+        </div>
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(179,136,255,.15)">
+          <div style="font-size:9px;font-weight:700;color:var(--gas);margin-bottom:6px">SENSOR FEEDS → Lattice</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <span style="background:rgba(179,136,255,.1);color:var(--gas);font-size:8px;padding:2px 6px;border-radius:4px">GPS/INS</span>
+            <span style="background:rgba(179,136,255,.1);color:var(--gas);font-size:8px;padding:2px 6px;border-radius:4px">IMU</span>
+            <span style="background:rgba(179,136,255,.1);color:var(--gas);font-size:8px;padding:2px 6px;border-radius:4px">EO Sensor</span>
+            <span style="background:rgba(179,136,255,.1);color:var(--gas);font-size:8px;padding:2px 6px;border-radius:4px">Gas Level</span>
+            <span style="background:rgba(179,136,255,.1);color:var(--gas);font-size:8px;padding:2px 6px;border-radius:4px">Spray Rate</span>
+            <span style="background:rgba(179,136,255,.1);color:var(--gas);font-size:8px;padding:2px 6px;border-radius:4px">Contam Map</span>
+          </div>
+        </div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(179,136,255,.15)">
+          <div style="font-size:9px;font-weight:700;color:var(--ai2);margin-bottom:6px">C2 COMMANDS (Lattice →)</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <span style="background:rgba(124,77,255,.1);color:var(--ai2);font-size:8px;padding:2px 6px;border-radius:4px">LAUNCH</span>
+            <span style="background:rgba(124,77,255,.1);color:var(--ai2);font-size:8px;padding:2px 6px;border-radius:4px">STERILIZE</span>
+            <span style="background:rgba(124,77,255,.1);color:var(--ai2);font-size:8px;padding:2px 6px;border-radius:4px">SPRAY</span>
+            <span style="background:rgba(124,77,255,.1);color:var(--ai2);font-size:8px;padding:2px 6px;border-radius:4px">RTB</span>
+            <span style="background:rgba(124,77,255,.1);color:var(--ai2);font-size:8px;padding:2px 6px;border-radius:4px">ABORT</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="background:rgba(0,229,255,.03);border:1px solid rgba(0,229,255,.12);border-radius:8px;padding:14px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--ai);margin-bottom:10px">📊 Entity Relationship Schema</div>
+      <div style="font-size:10px;color:#aaa;line-height:2">
+        <div><span style="color:var(--ai);font-weight:600">AVIX_SENSOR_ARRAY</span> ──tracks──→ <span style="color:var(--bird)">BIRD_ENTITY[ ]</span> (YOLOv8 + EfficientNet)</div>
+        <div><span style="color:var(--bird)">BIRD_ENTITY</span> ──triggers──→ <span style="color:var(--mission)">THREAT_ASSESSMENT</span> (LSTM + Risk Score)</div>
+        <div><span style="color:var(--mission)">THREAT_ASSESSMENT</span> ──assigns──→ <span style="color:var(--drone)">UAV_AIRBLAST[α,β]</span> | <span style="color:var(--gas)">UAV_CBRN[γ,δ]</span></div>
+        <div><span style="color:var(--drone)">UAV_AIRBLAST</span> ──executes──→ <span style="color:var(--ai3)">MISSION_DISPERSAL</span> (Air-Blast 120PSI)</div>
+        <div><span style="color:var(--gas)">UAV_CBRN</span> ──executes──→ <span style="color:var(--ai3)">MISSION_STERILIZE</span> (EO/H₂O₂ Spray)</div>
+        <div><span style="color:var(--ai3)">MISSION_*</span> ──reports──→ <span style="color:var(--ai2)">LATTICE_MESH_CORE</span> (BDA Feedback Loop)</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">
+      <span style="background:rgba(124,77,255,.12);color:var(--ai2);font-size:9px;font-weight:600;padding:4px 10px;border-radius:6px;border:1px solid rgba(124,77,255,.2)">gRPC/Protobuf</span>
+      <span style="background:rgba(0,229,255,.08);color:var(--ai);font-size:9px;font-weight:600;padding:4px 10px;border-radius:6px;border:1px solid rgba(0,229,255,.2)">MAVLink v2</span>
+      <span style="background:rgba(0,230,118,.08);color:var(--ai3);font-size:9px;font-weight:600;padding:4px 10px;border-radius:6px;border:1px solid rgba(0,230,118,.2)">MIL-STD-6016</span>
+      <span style="background:rgba(255,92,138,.08);color:var(--bird);font-size:9px;font-weight:600;padding:4px 10px;border-radius:6px;border:1px solid rgba(255,92,138,.2)">Link 16 Compatible</span>
+      <span style="background:rgba(124,77,255,.12);color:var(--ai2);font-size:9px;font-weight:600;padding:4px 10px;border-radius:6px;border:1px solid rgba(124,77,255,.2)">Zero-Trust Auth</span>
+      <span style="background:rgba(0,229,255,.08);color:var(--ai);font-size:9px;font-weight:600;padding:4px 10px;border-radius:6px;border:1px solid rgba(0,229,255,.2)">AES-256 Encrypted</span>
+    </div>
+  </div>
+  <!-- Tech Stack -->
+  <div class="card">
+    <h3 style="font-weight:700;margin-bottom:14px">AI Technology Stack</h3>
+    <div class="grid-2">
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <h4 style="color:var(--ai);font-weight:700;margin-bottom:8px;font-size:12px">🧠 AI/ML Engine</h4>
+        <ul style="padding-left:18px;font-size:11px;line-height:1.9;color:#bbb">
+          <li>YOLOv8n — Real-time Bird Detection</li>
+          <li>EfficientNet-B3 — Species Classification (47종)</li>
+          <li>LSTM — Flock Trajectory Prediction</li>
+          <li>Risk Scoring — Multi-factor Threat Assessment</li>
+          <li>A* Path Planning — Collision-free Routing</li>
+        </ul>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <h4 style="color:var(--ai2);font-weight:700;margin-bottom:8px;font-size:12px">📡 Sensor Fusion</h4>
+        <ul style="padding-left:18px;font-size:11px;line-height:1.9;color:#bbb">
+          <li>Bird Radar — 3D Avian Detection (15km+)</li>
+          <li>CCTV Array — Multi-angle Visual Feed</li>
+          <li>GPS/GNSS — Precision Drone Positioning</li>
+          <li>Weather Station — Wind/Visibility Data</li>
+          <li>ADS-B — Flight Schedule Integration</li>
+        </ul>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <h4 style="color:var(--mission);font-weight:700;margin-bottom:8px;font-size:12px">📱 Frontend (GCS App)</h4>
+        <ul style="padding-left:18px;font-size:11px;line-height:1.9;color:#bbb">
+          <li>SwiftUI + WKWebView (iOS 17+)</li>
+          <li>Real-time WebSocket Telemetry</li>
+          <li>MapKit — 3D Drone Tracking</li>
+          <li>Multi-touch Approval Interface</li>
+          <li>Dark Mode Military-grade UI</li>
+        </ul>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <h4 style="color:var(--gas);font-weight:700;margin-bottom:8px;font-size:12px">🚁 Hardware Interface</h4>
+        <ul style="padding-left:18px;font-size:11px;line-height:1.9;color:#bbb">
+          <li>MAVLink Protocol — Drone C2 Link</li>
+          <li>Air-Blast Controller — 120PSI Valve</li>
+          <li>EO/H₂O₂ Dispenser — Sterilization</li>
+          <li>Onboard Edge AI (TensorRT / ONNX)</li>
+          <li>Redundant Failsafe System</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Specs -->
+  <div class="card">
+    <h3 style="font-weight:700;margin-bottom:14px">System Specifications</h3>
+    <div class="grid-3">
+      <div class="spec-box"><div class="icon">🛰️</div><div class="label">Detection Range</div><div class="val">15+ km</div></div>
+      <div class="spec-box"><div class="icon">🧠</div><div class="label">AI Accuracy</div><div class="val">98.5%</div></div>
+      <div class="spec-box"><div class="icon">⚡</div><div class="label">AI Inference</div><div class="val">12ms</div></div>
+      <div class="spec-box"><div class="icon">🚁</div><div class="label">Fleet Size</div><div class="val">4 UAVs</div></div>
+      <div class="spec-box"><div class="icon">💨</div><div class="label">Air-Blast</div><div class="val">120 PSI</div></div>
+      <div class="spec-box"><div class="icon">🧪</div><div class="label">Gas Capacity</div><div class="val">5L EO</div></div>
+    </div>
+  </div>
+</div>
+</div><!-- /content -->
+
+<!-- FOOTER -->
+<div class="footer">
+  <div class="copy">© 2026 AVIX-AI v1.0 | Aviation Intelligent eXpert for Bird Strike | AI 기반 항공작전 조류위협 대응체계</div>
+  <div>Patents: KR 10-2828256, 2025-0019244, KR 10-1875181 | UAM KoreaTech Co., Ltd.</div>
+</div>
+
+<script>
+// Tab switching
+function switchTab(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// Clock
+function updateClock(){
+  const n=new Date();
+  document.getElementById('clock').textContent=n.toLocaleTimeString('en-US',{hour12:false})+' KST';
+}
+setInterval(updateClock,1000);updateClock();
+
+// Bird counts (AI simulated)
+let heron=45,goose=28,dove=12;
+function updateBirds(){
+  heron=Math.max(35,heron+(Math.random()>.5?1:-1));
+  goose=Math.max(20,goose+(Math.random()>.6?1:-1));
+  dove=Math.max(8,dove+(Math.random()>.7?1:-1));
+  document.getElementById('cnt-heron').textContent=Math.round(heron);
+  document.getElementById('cnt-goose').textContent=Math.round(goose);
+  document.getElementById('cnt-dove').textContent=Math.round(dove);
+}
+setInterval(updateBirds,2000);
+
+// Battery & gas drain
+let batA=92,batB=87,cartA=88,cartB=81,batC=78.5,batD=95,gasC=72,gasD=100;
+function updateTelemetry(){
+  batA=Math.max(70,batA-.1+Math.random()*.05);batB=Math.max(65,batB-.05);
+  cartA=Math.max(60,cartA-.05);cartB=Math.max(55,cartB-.03);
+  batC=Math.max(55,batC-.12+Math.random()*.03);batD=Math.max(90,batD-.02);
+  gasC=Math.max(40,gasC-.08);gasD=Math.max(95,gasD-.01);
+  document.getElementById('bat-a').textContent=batA.toFixed(1)+'%';
+  document.getElementById('bat-b').textContent=batB.toFixed(1)+'%';
+  document.getElementById('cart-a').textContent=cartA.toFixed(0)+'%';
+  document.getElementById('cart-b').textContent=cartB.toFixed(0)+'%';
+  document.getElementById('bat-c').textContent=batC.toFixed(1)+'%';
+  document.getElementById('bat-d').textContent=batD.toFixed(1)+'%';
+  document.getElementById('gas-c').textContent=gasC.toFixed(0)+'%';
+  document.getElementById('gas-d').textContent=gasD.toFixed(0)+'%';
+  document.getElementById('bar-bat-a').style.width=batA+'%';
+  document.getElementById('bar-bat-b').style.width=batB+'%';
+  document.getElementById('bar-cart-a').style.width=cartA+'%';
+  document.getElementById('bar-cart-b').style.width=cartB+'%';
+  document.getElementById('bar-bat-c').style.width=batC+'%';
+  document.getElementById('bar-bat-d').style.width=batD+'%';
+  document.getElementById('bar-gas-c').style.width=gasC+'%';
+  document.getElementById('bar-gas-d').style.width=gasD+'%';
+  document.getElementById('bar-bat-a').style.background=batA>50?'var(--green)':'var(--warn)';
+  document.getElementById('bar-bat-b').style.background=batB>50?'var(--green)':'var(--warn)';
+  document.getElementById('bar-bat-c').style.background=batC>50?'var(--green)':'var(--warn)';
+}
+setInterval(updateTelemetry,2000);
+
+// AI metrics fluctuation
+function updateAIMetrics(){
+  const fps=30+Math.floor(Math.random()*5);
+  const lat=10+Math.floor(Math.random()*5);
+  const gpu=60+Math.floor(Math.random()*15);
+  document.getElementById('ai-fps').textContent='YOLOv8 '+fps+'fps';
+  document.getElementById('ai-latency').textContent=lat+'ms';
+  document.getElementById('ai-gpu').textContent=gpu+'%';
+  document.getElementById('model-fps').textContent=fps;
+  document.getElementById('model-lat').textContent=lat+'ms';
+  document.getElementById('model-conf').textContent=(0.88+Math.random()*.08).toFixed(2);
+}
+setInterval(updateAIMetrics,3000);
+
+// AI Detection log
+const aiMsgs=[
+  'YOLOv8 DETECT | bbox:[412,128,580,290] conf:0.972 class:grey_heron count:45',
+  'EfficientNet CLASSIFY | species:Ardea_cinerea(왜가리) conf:0.968 latency:11ms',
+  'LSTM PREDICT | flock_id:FL-001 trajectory:NE→SW intercept_rwy:09L T+3.2min',
+  'RISK ENGINE | threat_score:9.4/10 factors:[altitude:850ft, count:45, distance:1200m]',
+  'YOLOv8 DETECT | bbox:[210,340,380,495] conf:0.941 class:bean_goose count:28',
+  'EfficientNet CLASSIFY | species:Anser_fabalis(기러기) conf:0.937 latency:12ms',
+  'LSTM PREDICT | flock_id:FL-002 trajectory:NW→SE shift_bearing:320° stable',
+  'PATH PLAN | A* compute: Alpha→FL-001 waypoints:5 distance:2.3km ETA:87s',
+  'EDGE AI | TensorRT inference batch:4 throughput:128fps GPU_util:72%',
+  'CONTAMINATION DETECT | Zone-C fecal_density:HIGH confidence:0.89 action:GAS_STERIL',
+];
+let aiIdx=0;
+function addAILog(){
+  const el=document.getElementById('ai-detect-log');
+  const t=new Date().toLocaleTimeString('en-US',{hour12:false});
+  el.textContent+='['+t+'] '+aiMsgs[aiIdx%aiMsgs.length]+'\n';
+  el.scrollTop=el.scrollHeight;
+  aiIdx++;
+}
+setInterval(addAILog,2500);
+
+// MAVLink log
+const mavMsgs=[
+  'HEARTBEAT | sys:1 comp:1 type:QUADROTOR autopilot:ARDUPILOT mode:AI_PATROL',
+  'GPS_RAW_INT | lat:375142000 lon:1270620000 alt:381000 fix:3D sats:14',
+  'ATTITUDE | roll:0.012 pitch:-0.008 yaw:1.245 rollspd:0.001',
+  'VFR_HUD | airspeed:12.3 groundspeed:11.8 heading:45 throttle:62',
+  'AI_STATUS | model:YOLOv8n fps:32 detections:4 gpu_temp:52C',
+  'MISSION_CURRENT | seq:3 total:8 mode:AI_AUTONOMOUS_INTERCEPT',
+  'GAS_STERIL_STATUS | drone:Charlie tank:72% flow_rate:0.8L/min zone:C',
+  'BATTERY_STATUS | Alpha:92% Bravo:87% Charlie:78% Delta:95%',
+];
+let mavIdx=0;
+function addMavLog(){
+  const el=document.getElementById('mavlink-log');
+  const t=new Date().toLocaleTimeString('en-US',{hour12:false});
+  el.textContent+='['+t+'] '+mavMsgs[mavIdx%mavMsgs.length]+'\n';
+  el.scrollTop=el.scrollHeight;
+  mavIdx++;
+}
+setInterval(addMavLog,3500);
+
+// AI Heatmap
+(function(){
+  const grid=document.getElementById('heatmap');
+  for(let i=0;i<24;i++){
+    const risk=Math.random();
+    let bg='rgba(0,255,157,.12)';
+    if(risk>.7)bg='rgba(255,59,59,.2)';
+    else if(risk>.4)bg='rgba(255,171,0,.15)';
+    const cell=document.createElement('div');
+    cell.className='heat-cell';
+    cell.style.background=bg;
+    cell.innerHTML='Z'+(i+1)+'<span class="ai-score">'+(risk*.6+.4).toFixed(2)+'</span>';
+    grid.appendChild(cell);
+  }
+})();
+</script>
+</body>
+</html>
