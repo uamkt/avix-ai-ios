@@ -9,11 +9,11 @@ env:
   APP_NAME: AVIX-AI
   SCHEME: AVIX-AI
   BUNDLE_ID: com.uamkoreatech.abdsgcs
-  XCODE_VERSION: "16.2"
+  XCODE_VERSION: "15.4"
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-14
 
     steps:
       - name: Checkout
