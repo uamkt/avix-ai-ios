@@ -39,13 +39,10 @@ jobs:
         run: |
           base64 --decode -i provisioning/avixai_appstore.b64 -o $RUNNER_TEMP/profile.mobileprovision
           PP_UUID=$(/usr/bin/security cms -D -i $RUNNER_TEMP/profile.mobileprovision | plutil -extract UUID raw -)
-          PP_NAME=$(/usr/bin/security cms -D -i $RUNNER_TEMP/profile.mobileprovision | plutil -extract Name raw -)
           echo "PP_UUID=$PP_UUID" >> $GITHUB_ENV
-          echo "PP_NAME=$PP_NAME" >> $GITHUB_ENV
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp $RUNNER_TEMP/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$PP_UUID.mobileprovision
           echo "Profile UUID: $PP_UUID"
-          echo "Profile Name: $PP_NAME"
 
       - name: Build Unsigned Archive
         run: |
@@ -59,46 +56,55 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Create ExportOptions.plist
+      - name: Sign and Create IPA
         run: |
-          cat > $RUNNER_TEMP/ExportOptions.plist << PLIST
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>app-store-connect</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>signingCertificate</key>
-            <string>Apple Distribution</string>
-            <key>teamID</key>
-            <string>545S5F426R</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>$BUNDLE_ID</key>
-              <string>${{ env.PP_UUID }}</string>
-            </dict>
-          </dict>
-          </plist>
-          PLIST
-          echo "ExportOptions.plist created:"
-          cat $RUNNER_TEMP/ExportOptions.plist
+          APP_PATH=$RUNNER_TEMP/$APP_NAME.xcarchive/Products/Applications/$APP_NAME.app
 
-      - name: Export IPA
-        run: |
-          xcodebuild -exportArchive \
-            -archivePath $RUNNER_TEMP/$APP_NAME.xcarchive \
-            -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
-            -exportPath $RUNNER_TEMP/export \
-            -allowProvisioningUpdates
+          echo "=== Embedding provisioning profile ==="
+          cp $RUNNER_TEMP/profile.mobileprovision "$APP_PATH/embedded.mobileprovision"
+
+          echo "=== Finding signing identity ==="
+          IDENTITY=$(security find-identity -v -p codesigning $RUNNER_TEMP/app-signing.keychain-db | grep "Apple Distribution" | head -1 | awk -F'"' '{print $2}')
+          echo "Signing with: $IDENTITY"
+
+          echo "=== Extracting entitlements from profile ==="
+          /usr/bin/security cms -D -i $RUNNER_TEMP/profile.mobileprovision > $RUNNER_TEMP/profile_full.plist
+          /usr/libexec/PlistBuddy -x -c "Print :Entitlements" $RUNNER_TEMP/profile_full.plist > $RUNNER_TEMP/entitlements.plist
+          echo "Entitlements:"
+          cat $RUNNER_TEMP/entitlements.plist
+
+          echo "=== Signing frameworks ==="
+          if [ -d "$APP_PATH/Frameworks" ]; then
+            for framework in "$APP_PATH/Frameworks/"*; do
+              /usr/bin/codesign --force --sign "$IDENTITY" --keychain $RUNNER_TEMP/app-signing.keychain-db "$framework"
+            done
+          fi
+
+          echo "=== Signing app ==="
+          /usr/bin/codesign --force --sign "$IDENTITY" \
+            --keychain $RUNNER_TEMP/app-signing.keychain-db \
+            --entitlements $RUNNER_TEMP/entitlements.plist \
+            --timestamp \
+            "$APP_PATH"
+
+          echo "=== Verifying signature ==="
+          /usr/bin/codesign --verify --deep --strict "$APP_PATH"
+          echo "Signature verified successfully"
+
+          echo "=== Creating IPA ==="
+          mkdir -p $RUNNER_TEMP/Payload
+          cp -R "$APP_PATH" $RUNNER_TEMP/Payload/
+          cd $RUNNER_TEMP
+          /usr/bin/zip -r $RUNNER_TEMP/$APP_NAME.ipa Payload
+          echo "IPA created: $RUNNER_TEMP/$APP_NAME.ipa"
+          ls -la $RUNNER_TEMP/$APP_NAME.ipa
 
       - name: Upload to App Store Connect
         run: |
           mkdir -p ~/private_keys
           base64 --decode -i provisioning/api_key_avixai.b64 -o ~/private_keys/AuthKey_599L62H6Y8.p8
           xcrun altool --upload-app \
-            -f "$RUNNER_TEMP/export/$APP_NAME.ipa" \
+            -f "$RUNNER_TEMP/$APP_NAME.ipa" \
             -t ios \
             --apiKey "599L62H6Y8" \
             --apiIssuer "e4c69502-cb98-4fed-b19b-e01d47c5c358"
