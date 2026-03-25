@@ -100,7 +100,7 @@ jobs:
             IPHONEOS_DEPLOYMENT_TARGET=17.0 \
             ENABLE_ON_DEMAND_RESOURCES=NO \
             ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS=NO \
-            ASSETCATALOG_FILTER_FOR_DEVICE_OS_VERSION=YES
+            SUPPORTED_PLATFORMS=iphoneos
 
       - name: Export IPA
         run: |
