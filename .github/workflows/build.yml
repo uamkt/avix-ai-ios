@@ -13,7 +13,7 @@ env:
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-14
 
     steps:
       - name: Checkout
@@ -82,6 +82,11 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :UIRequiresFullScreen bool true" AVIX-AI/Info.plist 2>/dev/null || \
           /usr/libexec/PlistBuddy -c "Set :UIRequiresFullScreen true" AVIX-AI/Info.plist
 
+      - name: Register simulator runtimes
+        run: |
+          xcrun simctl list runtimes 2>&1 | head -20 || true
+          sudo xcrun simctl runtime list 2>&1 | head -20 || true
+
       - name: Build Archive
         run: |
           xcodebuild archive \
@@ -99,8 +104,7 @@ jobs:
             PROVISIONING_PROFILE_SPECIFIER="$PP_UUID" \
             IPHONEOS_DEPLOYMENT_TARGET=17.0 \
             ENABLE_ON_DEMAND_RESOURCES=NO \
-            ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS=NO \
-            SUPPORTED_PLATFORMS=iphoneos
+            ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS=NO
 
       - name: Export IPA
         run: |
