@@ -118,15 +118,15 @@ jobs:
 
       - name: Upload to App Store Connect
         run: |
-          # Decode API key
-          base64 --decode -i provisioning/api_key_avixai.b64 -o $RUNNER_TEMP/api_key.p8
+          # Decode API key and place in standard location
+          mkdir -p ~/private_keys
+          base64 --decode -i provisioning/api_key_avixai.b64 -o ~/private_keys/AuthKey_599L62H6Y8.p8
 
           xcrun altool --upload-app \
             -f $RUNNER_TEMP/$APP_NAME.ipa \
             -t ios \
             --apiKey "599L62H6Y8" \
-            --apiIssuer "e4c69502-cb98-4fed-b19b-e01d47c5c358" \
-            --api-key-path $RUNNER_TEMP/api_key.p8
+            --apiIssuer "e4c69502-cb98-4fed-b19b-e01d47c5c358"
 
       - name: Clean up
         if: always()
@@ -134,6 +134,6 @@ jobs:
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
           rm -f $RUNNER_TEMP/cert.p12
           rm -f $RUNNER_TEMP/profile.mobileprovision
-          rm -f $RUNNER_TEMP/api_key.p8
+          rm -f ~/private_keys/AuthKey_599L62H6Y8.p8
           rm -f $RUNNER_TEMP/entitlements.plist
           rm -rf $RUNNER_TEMP/Payload
