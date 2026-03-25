@@ -92,6 +92,7 @@ jobs:
             -archivePath $RUNNER_TEMP/$APP_NAME.xcarchive \
             -destination 'generic/platform=iOS' \
             CODE_SIGN_IDENTITY="Apple Distribution" \
+            CODE_SIGN_STYLE=Manual \
             CODE_SIGNING_REQUIRED=YES \
             CODE_SIGNING_ALLOWED=YES \
             DEVELOPMENT_TEAM="$TEAM_ID" \
