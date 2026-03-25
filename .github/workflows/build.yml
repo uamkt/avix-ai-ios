@@ -26,10 +26,7 @@ jobs:
 
       - name: Setup Keychain and Certificate
         run: |
-          # Decode certificate
           base64 --decode -i provisioning/dist_certificate.b64 -o $RUNNER_TEMP/cert.p12
-
-          # Create and configure keychain
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
           security create-keychain -p "ci_keychain_pass" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
@@ -40,30 +37,17 @@ jobs:
 
       - name: Install Provisioning Profile
         run: |
-          # Decode provisioning profile
           base64 --decode -i provisioning/avixai_appstore.b64 -o $RUNNER_TEMP/profile.mobileprovision
-
-          # Extract UUID from profile
           PP_UUID=$(/usr/bin/security cms -D -i $RUNNER_TEMP/profile.mobileprovision | plutil -extract UUID raw -)
-          echo "PP_UUID=$PP_UUID" >> $GITHUB_ENV
-
-          # Extract Team ID
-          TEAM_ID=$(/usr/bin/security cms -D -i $RUNNER_TEMP/profile.mobileprovision | plutil -extract TeamIdentifier.0 raw -)
-          echo "TEAM_ID=$TEAM_ID" >> $GITHUB_ENV
-
-          # Extract Profile Name
           PP_NAME=$(/usr/bin/security cms -D -i $RUNNER_TEMP/profile.mobileprovision | plutil -extract Name raw -)
+          echo "PP_UUID=$PP_UUID" >> $GITHUB_ENV
           echo "PP_NAME=$PP_NAME" >> $GITHUB_ENV
-
-          # Install profile
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp $RUNNER_TEMP/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$PP_UUID.mobileprovision
-
           echo "Profile UUID: $PP_UUID"
-          echo "Team ID: $TEAM_ID"
           echo "Profile Name: $PP_NAME"
 
-      - name: Build Unsigned Archive
+      - name: Build Archive
         run: |
           xcodebuild archive \
             -project $APP_NAME.xcodeproj \
@@ -71,59 +55,50 @@ jobs:
             -configuration Release \
             -archivePath $RUNNER_TEMP/$APP_NAME.xcarchive \
             -destination 'generic/platform=iOS' \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="${{ env.PP_NAME }}" \
+            DEVELOPMENT_TEAM="545S5F426R"
 
-      - name: Sign App
+      - name: Create ExportOptions.plist
         run: |
-          APP_PATH="$RUNNER_TEMP/$APP_NAME.xcarchive/Products/Applications/$APP_NAME.app"
-
-          # Extract entitlements from the unsigned app
-          codesign -d --entitlements - "$APP_PATH" > $RUNNER_TEMP/entitlements.plist 2>/dev/null || true
-
-          # If no entitlements extracted, create minimal one
-          if [ ! -s $RUNNER_TEMP/entitlements.plist ]; then
-            cat > $RUNNER_TEMP/entitlements.plist << 'ENTITLEMENTS'
+          cat > $RUNNER_TEMP/ExportOptions.plist << PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
-            <key>application-identifier</key>
-            <string>${{ env.TEAM_ID }}.${{ env.BUNDLE_ID }}</string>
-            <key>com.apple.developer.team-identifier</key>
-            <string>${{ env.TEAM_ID }}</string>
-            <key>get-task-allow</key>
-            <false/>
+            <key>method</key>
+            <string>app-store</string>
+            <key>destination</key>
+            <string>upload</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>teamID</key>
+            <string>545S5F426R</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>$BUNDLE_ID</key>
+              <string>${{ env.PP_UUID }}</string>
+            </dict>
           </dict>
           </plist>
-          ENTITLEMENTS
-          fi
+          PLIST
+          echo "ExportOptions.plist created:"
+          cat $RUNNER_TEMP/ExportOptions.plist
 
-          # Embed provisioning profile
-          cp $RUNNER_TEMP/profile.mobileprovision "$APP_PATH/embedded.mobileprovision"
-
-          # Sign the app
-          codesign --force --sign "Apple Distribution" \
-            --entitlements $RUNNER_TEMP/entitlements.plist \
-            --timestamp \
-            "$APP_PATH"
-
-      - name: Package IPA
+      - name: Export IPA
         run: |
-          mkdir -p $RUNNER_TEMP/Payload
-          cp -r "$RUNNER_TEMP/$APP_NAME.xcarchive/Products/Applications/$APP_NAME.app" $RUNNER_TEMP/Payload/
-          cd $RUNNER_TEMP
-          zip -r $APP_NAME.ipa Payload
+          xcodebuild -exportArchive \
+            -archivePath $RUNNER_TEMP/$APP_NAME.xcarchive \
+            -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
+            -exportPath $RUNNER_TEMP/export
 
       - name: Upload to App Store Connect
         run: |
-          # Decode API key and place in standard location
           mkdir -p ~/private_keys
           base64 --decode -i provisioning/api_key_avixai.b64 -o ~/private_keys/AuthKey_599L62H6Y8.p8
-
           xcrun altool --upload-app \
-            -f $RUNNER_TEMP/$APP_NAME.ipa \
+            -f "$RUNNER_TEMP/export/$APP_NAME.ipa" \
             -t ios \
             --apiKey "599L62H6Y8" \
             --apiIssuer "e4c69502-cb98-4fed-b19b-e01d47c5c358"
@@ -135,5 +110,3 @@ jobs:
           rm -f $RUNNER_TEMP/cert.p12
           rm -f $RUNNER_TEMP/profile.mobileprovision
           rm -f ~/private_keys/AuthKey_599L62H6Y8.p8
-          rm -f $RUNNER_TEMP/entitlements.plist
-          rm -rf $RUNNER_TEMP/Payload
